@@ -91,6 +91,14 @@
 /processorParam:Version=3.8.6.0
 /build:log.png
 
+#begin Monocraft.ttf
+/importer:FontImporter
+/processor:FontDescriptionProcessor
+/processorParam:PremultiplyAlpha=True
+/processorParam:TextureFormat=Compressed
+/processorParam:Version=3.8.6.0
+/build:Monocraft.ttf
+
 #begin player.png
 /importer:TextureImporter
 /processor:TextureProcessor

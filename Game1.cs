@@ -8,7 +8,6 @@ public class Game1 : Game
 {
     private GraphicsDeviceManager _graphics;
     private GameManager _gameManager;
-    private Matrix _screenScaleMatrix;
 
     public Game1()
     {
@@ -23,8 +22,6 @@ public class Game1 : Game
         _graphics.PreferredBackBufferHeight = Globals.GameWindow.Y;
         _graphics.ApplyChanges();
 
-        UpdateMatrix();
-
         base.Initialize();
     }
 
@@ -33,6 +30,7 @@ public class Game1 : Game
         Globals.GraphicsDevice = GraphicsDevice;
         Globals.SpriteBatch = new SpriteBatch(GraphicsDevice);
         Globals.ContentManager = Content;
+        Globals.GetMatrix();
 
         _gameManager = new();
     }
@@ -49,21 +47,10 @@ public class Game1 : Game
     {
         GraphicsDevice.Clear(Color.Black);
 
-        Globals.SpriteBatch.Begin(samplerState: SamplerState.PointClamp, transformMatrix: _screenScaleMatrix);
+        Globals.SpriteBatch.Begin(samplerState: SamplerState.PointClamp, transformMatrix: Globals.GameMatrix);
         _gameManager.Draw();
         Globals.SpriteBatch.End();
 
         base.Draw(gameTime);
-    }
-
-    private void UpdateMatrix()
-    {
-        float zoom = 6f;
-
-        Vector2 center = new(Globals.GameWindow.X / 2f, Globals.GameWindow.Y / 2f);
-
-        _screenScaleMatrix = Matrix.CreateTranslation(-center.X, -center.Y, 0) *
-                             Matrix.CreateScale(zoom, zoom, 1f) *
-                             Matrix.CreateTranslation(center.X, center.Y, 0);
     }
 }
