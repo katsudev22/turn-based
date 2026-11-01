@@ -138,13 +138,20 @@ public class BattleManager : IObserver
         if (receivedEvent is OnFireButtonClickedEvent)
             player.Fire();
 
+        if (receivedEvent is OnActorTakeDamageEvent actorTakeDamageEvent)
+        {
+            uiManager.UpdateHealthBars(player.Health, enemy.Health);
+        }
+
         if (receivedEvent is OnPlayerAttackEvent playerAttackEvent)
         {
             AttackCommand playerAttack = new(player, enemy, playerAttackEvent.Damage);
             Actions.Add(playerAttack);
+            Console.WriteLine("Add the player attack command on actions");
 
             AttackCommand enemyAttackCommand = new(enemy, player, 5);
             Actions.Add(enemyAttackCommand);
+            Console.WriteLine("Add the enemy attack command on actions");
 
             foreach (ICommand action in Actions)
                 action.Execute();
@@ -216,17 +223,27 @@ public class UiManager : Subject
         FireButton.Draw();
         Log.Draw();
     }
+
+    public void UpdateHealthBars(int playerHealth, int enemyHealth)
+    {
+        PlayerHealthBar.CurrentHealth = playerHealth;
+        EnemyHealthBar.CurrentHealth = enemyHealth;
+    }
 }
 
 public class HealthBar
 {
     public Texture2D Texture;
     public Vector2 Position;
+    public int MaxHealth;
+    public int CurrentHealth;
 
     public HealthBar(Texture2D texture, Vector2 position)
     {
         Texture = texture;
         Position = position;
+        MaxHealth = texture.Width;
+        CurrentHealth = texture.Width;
     }
 
     public void Update()
@@ -236,7 +253,11 @@ public class HealthBar
 
     public void Draw()
     {
-        Globals.SpriteBatch.Draw(Texture, Position, null, Color.White);
+        float healthPercent = (float)CurrentHealth / MaxHealth;
+        healthPercent = MathHelper.Clamp(healthPercent, 0f, 1f);
+        Vector2 scale = new(healthPercent, 1f);
+
+        Globals.SpriteBatch.Draw(Texture, Position, null, Color.White, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
     }
 }
 
@@ -316,6 +337,7 @@ public class Player : Subject, IGameActor
         Position = position;
         Level = 0;
         Strength = 5;
+        Health = 100;
     }
 
     public void Update()
@@ -353,11 +375,13 @@ public class Enemy : Subject, IGameActor
     public Texture2D Texture;
     public Vector2 Position;
     public int Health { get; set; }
+    
 
     public Enemy(Vector2 position)
     {
         Texture = Globals.ContentManager.Load<Texture2D>("enemy");
         Position = position;
+        Health = 100;
     }
 
     public void Update()
