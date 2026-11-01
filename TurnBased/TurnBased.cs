@@ -132,14 +132,29 @@ public class BattleManager : IObserver
 
     public void OnNotify(IEvent receivedEvent)
     {
-        throw new NotImplementedException();
+        if (receivedEvent is OnAttackButtonClickedEvent)
+            player.Attack();
+        
+        if (receivedEvent is OnFireButtonClickedEvent)
+            player.Fire();
+
+        if (receivedEvent is OnPlayerAttackEvent playerAttackEvent)
+        {
+            AttackCommand playerAttack = new(player, enemy, playerAttackEvent.Damage);
+            Actions.Add(playerAttack);
+
+            AttackCommand enemyAttackCommand = new(enemy, player, 5);
+            Actions.Add(enemyAttackCommand);
+
+            foreach (ICommand action in Actions)
+                action.Execute();
+
+            InitNewRound();
+        }
     }
 
     private void InitNewRound()
-    {
-        enemy = new(new(Globals.GameWindow.X / 2 + 40, Globals.GameWindow.Y / 2 - 30));
-        enemy.AddObserver(this);
-     
+    { 
         Round++;
         uiManager.Log.LogMessage($"Round {Round} started!!");
     }
@@ -175,12 +190,18 @@ public class UiManager : Subject
     {
         Point mousePosition = InputManager.GetMousePosition();
         Rectangle attackButtonBounds = new((int)AttackButton.Position.X, (int)AttackButton.Position.Y, AttackButton.Texture.Width, AttackButton.Texture.Height);
+        Rectangle fireButtonBounds = new((int)FireButton.Position.X, (int)FireButton.Position.Y, FireButton.Texture.Width, FireButton.Texture.Height);
 
         if (attackButtonBounds.Contains(mousePosition) && InputManager.IsLeftButtonClicked())
         {
-            OnAttackActionEvent playerAttackEvent = new(damage: 5.0f);
+            OnAttackButtonClickedEvent buttonClickedEvent = new();
+            Notify(buttonClickedEvent);
+        }
 
-            Log.LogMessage("Player used Attack!!");   
+        if (fireButtonBounds.Contains(mousePosition) && InputManager.IsLeftButtonClicked())
+        {
+            OnFireButtonClickedEvent buttonClickedEvent = new();
+            Notify(buttonClickedEvent);
         }
     }
     
@@ -274,15 +295,27 @@ public class Log
     }
 }
 
-public class Player : Subject
+public interface IGameActor
+{
+    public int Health { get; set; }
+
+    public void TakeDamage(int damage);
+}
+
+public class Player : Subject, IGameActor
 {
     public Texture2D Texture;
     public Vector2 Position;
+    public int Level;
+    public int Strength;
+    public int Health { get; set; }
 
     public Player(Vector2 position)
     {
         Texture = Globals.ContentManager.Load<Texture2D>("player");
         Position = position;
+        Level = 0;
+        Strength = 5;
     }
 
     public void Update()
@@ -294,12 +327,32 @@ public class Player : Subject
     {
         Globals.SpriteBatch.Draw(Texture, Position, null, Color.White);
     }
+
+    public void Attack()
+    {
+        OnPlayerAttackEvent attackEvent = new(damage: Strength);
+        Notify(attackEvent);
+    }
+
+    public void Fire()
+    {
+        OnPlayerAttackEvent fireEvent = new(damage: 2 * Strength);
+        Notify(fireEvent);
+    }
+
+    public void TakeDamage(int damage)
+    {
+        Health -= damage;
+        OnActorTakeDamageEvent takeDamageEvent = new(this, Health);
+        Notify(takeDamageEvent);
+    }
 }
 
-public class Enemy : Subject
+public class Enemy : Subject, IGameActor
 {
     public Texture2D Texture;
     public Vector2 Position;
+    public int Health { get; set; }
 
     public Enemy(Vector2 position)
     {
@@ -316,6 +369,13 @@ public class Enemy : Subject
     {
         Globals.SpriteBatch.Draw(Texture, Position, null, Color.White);
     }
+
+    public void TakeDamage(int damage)
+    {
+        Health -= damage;
+        OnActorTakeDamageEvent takeDamageEvent = new(this, Health);
+        Notify(takeDamageEvent);
+    }
 }
 
 // # -- Command pattern -- # //
@@ -326,28 +386,50 @@ public interface ICommand
 
 public class AttackCommand : ICommand
 {
-    public void Execute()
-    {
-        throw new NotImplementedException();
-    }
-}
+    private IGameActor Attacker;
+    private IGameActor Defender;
+    private int Damage;
 
-public class FireCommand : ICommand
-{
-    public void Execute()
+    public AttackCommand(IGameActor attacker, IGameActor defender, int damage)
     {
-        throw new NotImplementedException();
+        Attacker = attacker;
+        Defender = defender;
+        Damage = damage;
     }
+
+    public void Execute() =>
+        Defender.TakeDamage(Damage);
 }
 
 // # -- Observer pattern -- # //
 public interface IEvent { }
 
-public class OnAttackActionEvent : IEvent
-{
-    public float Damage;
 
-    public OnAttackActionEvent(float damage) => Damage = damage;
+public class OnAttackButtonClickedEvent : IEvent
+{
+    public OnAttackButtonClickedEvent() { }
+}
+
+public class OnFireButtonClickedEvent : IEvent
+{
+    public OnFireButtonClickedEvent() { }
+}
+
+public class OnPlayerAttackEvent : IEvent
+{
+    public int Damage;
+    public OnPlayerAttackEvent(int damage) => Damage = damage;
+}
+
+public class OnActorTakeDamageEvent : IEvent
+{
+    public IGameActor Actor;
+    public int Health;
+    public OnActorTakeDamageEvent(IGameActor actor, int health)
+    {
+        Actor = actor;
+        Health = health;
+    }
 }
 
 public interface IObserver
